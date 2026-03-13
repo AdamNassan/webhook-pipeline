@@ -1,0 +1,45 @@
+{
+  "name": "webhook-driven-task-pipeline",
+  "version": "1.0.0",
+  "main": "dist/api/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "dev:api": "tsx src/api/server.ts",
+    "dev:worker": "tsx src/worker/server.ts",
+    "start:api": "node dist/api/server.js",
+    "start:worker": "node dist/worker/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": "Webhook-driven task processing pipeline",
+  "dependencies": {
+    "@prisma/client": "^6.17.1",
+    "bullmq": "^5.70.4",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "ioredis": "^5.10.0",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "prisma": "^6.17.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.5",
+    "@types/supertest": "^7.2.0",
+    "eslint": "^10.0.3",
+    "supertest": "^7.2.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18"
+  }
+}
