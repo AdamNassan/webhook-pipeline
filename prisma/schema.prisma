@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  queued
+  processing
+  succeeded
+  failed
+  dropped
+}
+
+enum DeliveryStatus {
+  pending
+  retrying
+  delivered
+  failed
+}
+
+enum ActionType {
+  transform
+  validate
+  filter
+}
+
+enum ActionRunStatus {
+  succeeded
+  failed
+  skipped
+}
+
+model Pipeline {
+  id          String           @id @default(cuid())
+  name        String
+  sourceToken String           @unique
+  webhookSecret String?          @map("webhook_secret")
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  actions     PipelineAction[]
+  subscribers Subscriber[]
+  jobs        Job[]
+
+  @@map("pipelines")
+}
+
+model PipelineAction {
+  id          String         @id @default(cuid())
+  pipelineId  String
+  type        ActionType
+  actionOrder Int
+  config      Json
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  pipeline    Pipeline       @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  actionRuns  JobActionRun[]
+
+  @@unique([pipelineId, actionOrder])
+  @@index([pipelineId])
+  @@map("pipeline_actions")
+}
+
+model Subscriber {
+  id           String            @id @default(cuid())
+  pipelineId   String
+  targetUrl    String
+  isActive     Boolean           @default(true)
+  secret       String?
+  maxRetries   Int               @default(5)
+  timeoutMs    Int               @default(10000)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  pipeline     Pipeline          @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deliveries   DeliveryAttempt[]
+
+  @@index([pipelineId])
+  @@map("subscribers")
+}
+
+model Job {
+  id              String            @id @default(cuid())
+  pipelineId      String
+  status          JobStatus         @default(queued)
+  idempotencyKey  String?
+  inputPayload    Json
+  outputPayload   Json?
+  errorSummary    String?
+  queuedAt        DateTime          @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  pipeline        Pipeline          @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  actionRuns      JobActionRun[]
+  deliveryAttempts DeliveryAttempt[]
+
+  @@unique([pipelineId, idempotencyKey])
+  @@index([pipelineId, status])
+  @@index([queuedAt])
+  @@map("jobs")
+}
+
+model JobActionRun {
+  id               String         @id @default(cuid())
+  jobId            String
+  pipelineActionId String
+  status           ActionRunStatus
+  actionOrder      Int
+  inputPayload     Json?
+  outputPayload    Json?
+  errorMessage     String?
+  durationMs       Int?
+  executedAt       DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+  job              Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  pipelineAction   PipelineAction @relation(fields: [pipelineActionId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, actionOrder])
+  @@index([pipelineActionId])
+  @@map("job_action_runs")
+}
+
+model DeliveryAttempt {
+  id             String         @id @default(cuid())
+  jobId          String
+  subscriberId   String
+  attemptNumber  Int
+  status         DeliveryStatus @default(pending)
+  responseCode   Int?
+  responseBody   String?
+  errorMessage   String?
+  nextAttemptAt  DateTime?
+  attemptedAt    DateTime       @default(now())
+  deliveredAt    DateTime?
+  createdAt      DateTime       @default(now())
+  job            Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  subscriber     Subscriber     @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, subscriberId, attemptNumber])
+  @@index([jobId])
+  @@index([subscriberId, status])
+  @@map("delivery_attempts")
+}
